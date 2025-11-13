@@ -2,9 +2,6 @@ import webbrowser
 
 import flet as ft
 import flet.map as map
-import random
-import os
-
 import requests
 
 
@@ -161,6 +158,10 @@ class MapFrame(ft.Container):
 
         self.switch_bcgBtn = ft.ElevatedButton("SATELITA 🛰", on_click=self.switch_bcg)
 
+        self.hide_labelsBtn = ft.ElevatedButton(
+            "Uryj numery działek", on_click=self.hide_labels
+        )
+
         self.listControl = ft.ListView(expand=1, spacing=5, padding=5)
         # self.listControl.visible = False
 
@@ -211,6 +212,7 @@ class MapFrame(ft.Container):
         # extras_row.visible = False
         self.listControl.visible = False
         self.img_stack.visible = False
+        self.labels_visibility = True
 
         self.add_plots()
         self.add_lr()
@@ -238,6 +240,7 @@ class MapFrame(ft.Container):
                     [
                         zoom_to_allBtn,
                         self.switch_bcgBtn,
+                        self.hide_labelsBtn,
                         listBtn,
                         # elBtn
                     ],
@@ -266,6 +269,19 @@ class MapFrame(ft.Container):
             self.current_layer = "esri"
             self.switch_bcgBtn.text = "🗺 MAPA"  #
         self.main_map.update()
+        self.page.update()
+
+    def hide_labels(self, e=None):
+        if self.labels_visibility:
+            self.labels_visibility = False
+            self.hide_labelsBtn.text = "Pokaż numery działek"
+
+            self.main_map.layers[3].visible = False
+        else:
+            self.labels_visibility = True
+            self.main_map.layers[3].visible = True
+            self.hide_labelsBtn.text = "Ukryj numery działek"
+
         self.page.update()
 
     def clear_layers(self):
