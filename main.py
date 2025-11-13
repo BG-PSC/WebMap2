@@ -64,23 +64,9 @@ class MapFrame(ft.Container):
         def handle_event(e: map.MapEvent):
             pass
 
-        label = ft.Container(
-            content=ft.Row(
-                [
-                    ft.Text(
-                        "Click anywhere to add a Marker, right-click to add a CircleMarker."
-                    )
-                ]
-            ),
-            border_radius=ft.border_radius.all(10),
-            bgcolor=ft.Colors.with_opacity(0.6, ft.Colors.PRIMARY_CONTAINER),
-            padding=5,
-            blur=15,
-        )
-
         self.main_map = map.Map(
             expand=True,
-            initial_center=map.MapLatitudeLongitude(51.1649819320, 21.6383970534),
+            initial_center=map.MapLatitudeLongitude(53.6880608949, 23.1055362969),
             initial_zoom=12,
             min_zoom=10,
             max_zoom=21,
@@ -169,7 +155,7 @@ class MapFrame(ft.Container):
         zoom_to_allBtn = ft.ElevatedButton(
             "Pokaż całą mapę",
             on_click=lambda e: self.main_map.move_to(
-                map.MapLatitudeLongitude(51.1649819320, 21.6383970534), 12
+                map.MapLatitudeLongitude(53.6880608949, 23.1055362969), 12
             ),
         )
 
