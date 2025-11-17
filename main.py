@@ -1,8 +1,103 @@
 import webbrowser
 
 import flet as ft
-import flet.map as map
+import flet_map as map
 import requests
+
+
+def main(page: ft.Page):
+    debug = False
+    robota = "sztabin"  # <<<<---- jednoczesnie nazwa folderu z danymi w repozytorium files/pliki/<robota>
+    centrum = map.MapLatitudeLongitude(53.6880608949, 23.1055362969)
+    zoom = 14
+
+    file = requests.get(
+        f"https://raw.githubusercontent.com/BG-PSC/Files/main/pliki/{robota}/punkty.txt"
+    ).text
+    # file = requests.get("https://bg-psc.github.io/Files/pliki/punkty.txt").text
+    lines = str(file).split("\n")
+    lines = [line.strip() for line in lines if line.strip()]
+    # file = requests.get("https://bg-psc.github.io/Files/pliki/kod-dzialka.txt").text
+    file = requests.get(
+        f"https://raw.githubusercontent.com/BG-PSC/Files/main/pliki/{robota}/kod-dzialka.txt"
+    ).text
+    kody = str(file).split("\n")
+    kody = [kod.strip() for kod in kody if kod.strip()]
+
+    if debug:
+        with open(r"D:\Python\kuba\web_map\Files\pliki\punkty.txt", "r") as file:
+            lines = file.read().splitlines()
+
+        with open(r"D:\Python\kuba\web_map\Files\pliki\kod-dzialka.txt", "r") as file:
+            kody = file.read().splitlines()
+
+    # main_row.controls.append(label)
+
+    mf = MapFrame(page, lines, kody, robota, centrum, zoom)
+
+    def submit_on_clik(e):
+        # mf.visible = not mf.visible
+        mf.clear_layers()
+        page.update()
+        # query.value
+        mf.load_values(query.value)
+
+    query = ft.TextField(
+        label="Wprowadź kod otrzymany w zawiadomieniu",
+        on_submit=lambda e: submit_on_clik(e),
+        height=50,
+        col={"xs": 4, "sm": 4, "md": 3},
+    )
+    submit = ft.ElevatedButton(
+        "Zatwierdź",
+        on_click=lambda e: submit_on_clik(e),
+        height=50,
+        bgcolor=ft.Colors.PRIMARY,
+        color=ft.Colors.ON_PRIMARY,
+        col={"xs": 3, "sm": 3, "md": 1},
+    )
+
+    logo = ft.GestureDetector(
+        content=ft.Image(
+            src="https://raw.githubusercontent.com/BG-PSC/WebMap/main/assets/logo.png",
+            width=50,
+            height=50,
+            fit=ft.ImageFit.CONTAIN,
+        ),
+        on_tap=lambda e: page.launch_url("https://bg-p.pl"),
+        mouse_cursor=ft.MouseCursor.CLICK,
+        col={"xs": 1, "sm": 1, "md": 1},
+    )
+
+    aboutBtn = ft.ElevatedButton(
+        content=ft.Row(
+            controls=[
+                ft.Image(
+                    src="https://raw.githubusercontent.com/BG-PSC/WebMap/refs/heads/main/assets/gddkia.png",
+                    width=40,
+                    height=40,
+                ),
+                ft.Text("O inwestycji", color=ft.Colors.DEEP_ORANGE),
+            ]
+        ),
+        on_click=lambda e: page.launch_url("https://www.dk79-obwodnicalipska.pl/"),
+        col={"xs": 3, "sm": 3, "md": 1.5},
+        height=50,
+    )
+
+    main_row = ft.ResponsiveRow(
+        controls=[logo, query, submit, aboutBtn],
+        alignment=ft.MainAxisAlignment.CENTER,
+        vertical_alignment=ft.CrossAxisAlignment.START,
+    )
+
+    page.add(main_row)
+
+    page.add(mf)
+
+    page.theme_mode = ft.ThemeMode.LIGHT
+
+    page.update()
 
 
 class PointButton(ft.TextButton):
@@ -11,11 +106,19 @@ class PointButton(ft.TextButton):
 
 
 class MapFrame(ft.Container):
-    def __init__(self, page: ft.Page, lines, kody):
+    def __init__(self, page: ft.Page, lines, kody, robota, centrum, zoom):
         super().__init__()
-
+        self.robota = robota
         self.lines = lines
         self.kody = kody
+        self.page = page
+        print("Reset mapy")
+        self.current_center = map.MapLatitudeLongitude(53.5429174879, 23.1143806578)
+        print(self.current_center)
+        self.current_center = centrum
+        print(self.current_center)
+        self.current_zoom = zoom
+        print(self.current_zoom)
 
         self.expand = 1
         self.border_radius = ft.border_radius.all(10)
@@ -28,6 +131,7 @@ class MapFrame(ft.Container):
         self.label_ref_plots = ft.Ref[map.MarkerLayer]()
         self.lr_ref = ft.Ref[map.PolylineLayer]()
         self.plot_ref = ft.Ref[map.PolylineLayer]()
+        self.marked_ref = ft.Ref[map.CircleLayer]
 
         self.main_map = map.Map(
             layers=[
@@ -35,6 +139,7 @@ class MapFrame(ft.Container):
                 map.CircleLayer(ref=self.circle_layer_ref, circles=[]),
                 map.PolylineLayer(ref=self.lr_ref, polylines=[]),
                 map.PolylineLayer(ref=self.plot_ref, polylines=[]),
+                map.CircleLayer(ref=self.marked_ref, circles=[]),
             ]
         )
 
@@ -61,19 +166,31 @@ class MapFrame(ft.Container):
         def handle_event(e: map.MapEvent):
             pass
 
+        label = ft.Container(
+            content=ft.Row(
+                [
+                    ft.Text(
+                        "Click anywhere to add a Marker, right-click to add a CircleMarker."
+                    )
+                ]
+            ),
+            border_radius=ft.border_radius.all(10),
+            bgcolor=ft.Colors.with_opacity(0.6, ft.Colors.PRIMARY_CONTAINER),
+            padding=5,
+            blur=15,
+        )
+
         self.main_map = map.Map(
             expand=True,
-            initial_center=map.MapLatitudeLongitude(53.6880608949, 23.1055362969),
-            initial_zoom=12,
+            initial_center=self.current_center,
+            initial_zoom=self.current_zoom,
             min_zoom=10,
             max_zoom=21,
             interaction_configuration=map.MapInteractionConfiguration(
                 flags=map.MapInteractiveFlag.ALL
             ),
             # on_init=lambda e: print(f"Initialized Map"),
-            on_tap=lambda e: handle_tap(e),
-            on_secondary_tap=lambda e: handle_tap(e),
-            on_long_press=lambda e: handle_tap(e),
+            on_position_change=lambda e: self.on_map_event(e),
             # on_event=lambda e: print(e),
             layers=[
                 map.TileLayer(
@@ -106,6 +223,7 @@ class MapFrame(ft.Container):
                     ref=self.circle_layer_ref,
                     circles=[],
                 ),
+                map.CircleLayer(ref=self.marked_ref, circles=[]),  # type: ignore
                 map.SimpleAttribution(
                     text="2025 BG-P.PL, OpenStreetMap contributors, ESRI World Imagery",
                     alignment=ft.alignment.bottom_left,
@@ -125,20 +243,22 @@ class MapFrame(ft.Container):
         def listBtn_click(e):
             self.listControl.visible = not self.listControl.visible
             self.img_stack.visible = not self.img_stack.visible
-            self.main_map.visible = not self.main_map.visible
+            # self.main_map.visible = not self.main_map.visible
             if listBtn.text == "🗺 Mapa":
                 listBtn.text = "📷 Zdjęcia punktów granicznych"
                 listBtn.tooltip = "Pokaż listę punktów"
                 zoom_to_allBtn.visible = True
                 self.switch_bcgBtn.visible = True
+                self.main_map.layers[4].visible = True
 
             else:
                 listBtn.text = "🗺 Mapa"
                 listBtn.tooltip = "Pokaż mapę"
                 zoom_to_allBtn.visible = False
                 self.switch_bcgBtn.visible = False
+                self.main_map.layers[4].visible = False
             page.update()
-            self.zoom_to_all_objects()
+            # self.zoom_to_all_objects()
 
         listBtn = ft.ElevatedButton(
             "📷 Zdjęcia punktów granicznych",
@@ -152,7 +272,7 @@ class MapFrame(ft.Container):
         zoom_to_allBtn = ft.ElevatedButton(
             "Pokaż całą mapę",
             on_click=lambda e: self.main_map.move_to(
-                map.MapLatitudeLongitude(53.6880608949, 23.1055362969), 12
+                self.current_center, self.current_zoom
             ),
         )
 
@@ -213,7 +333,6 @@ class MapFrame(ft.Container):
         self.listControl.visible = False
         self.img_stack.visible = False
         self.labels_visibility = True
-
         self.add_plots()
         self.add_lr()
         self.add_labels()
@@ -240,8 +359,8 @@ class MapFrame(ft.Container):
                     [
                         zoom_to_allBtn,
                         self.switch_bcgBtn,
-                        self.hide_labelsBtn,
                         listBtn,
+                        self.hide_labelsBtn,
                         # elBtn
                     ],
                     alignment=ft.MainAxisAlignment.CENTER,
@@ -253,6 +372,9 @@ class MapFrame(ft.Container):
             ],
             expand=1,
         )
+
+    def on_map_event(self, e: map.MapEvent):
+        pass
 
     def switch_bcg(self, e=None):
         # Check the current map layer and toggle
@@ -294,7 +416,9 @@ class MapFrame(ft.Container):
 
     def add_lr(self):
 
-        file = requests.get("https://bg-psc.github.io/Files/pliki/sztabin/lr.txt").text
+        file = requests.get(
+            f"https://bg-psc.github.io/Files/pliki/{self.robota}/lr.txt"
+        ).text
         lines = str(file).split("\n")
 
         current = ""
@@ -341,7 +465,7 @@ class MapFrame(ft.Container):
                             ft.TextSpan(
                                 f"{text}",
                                 ft.TextStyle(
-                                    size=10,
+                                    size=8,
                                     weight=ft.FontWeight.BOLD,
                                     foreground=ft.Paint(
                                         color=ft.Colors.WHITE,
@@ -357,7 +481,7 @@ class MapFrame(ft.Container):
                     ft.Text(
                         value=f"{text}",
                         color=ft.Colors.BLUE,
-                        size=10,
+                        size=8,
                         weight=ft.FontWeight.BOLD,
                         text_align=ft.TextAlign.LEFT,
                     ),
@@ -372,7 +496,7 @@ class MapFrame(ft.Container):
 
     def add_labels(self):
         file = requests.get(
-            "https://bg-psc.github.io/Files/pliki/sztabin/etykiety.txt"
+            f"https://bg-psc.github.io/Files/pliki/{self.robota}/etykiety.txt"
         ).text
         lines = str(file).split("\n")
 
@@ -383,7 +507,7 @@ class MapFrame(ft.Container):
     def add_plots(self):
 
         file = requests.get(
-            "https://bg-psc.github.io/Files/pliki/sztabin/dzialki.txt"
+            f"https://bg-psc.github.io/Files/pliki/{self.robota}/dzialki.txt"
         ).text
         lines = str(file).split("\n")
 
@@ -397,7 +521,6 @@ class MapFrame(ft.Container):
                 current = temp[0]
 
             if current == temp[0]:
-                print(temp)
                 temp_l.append(map.MapLatitudeLongitude(float(temp[3]), float(temp[2])))
             else:
                 if len(temp_l) > 0:
@@ -489,7 +612,7 @@ class MapFrame(ft.Container):
             self.image_pin = (
                 f"https://www.google.com/maps?q={spl[4]},{spl[6]}&label={spl[2]}"
             )
-            print(spl)
+            self.mark_point(spl[4], spl[6])
         except Exception as e:
             print(spl)
             self.image_file.src = "https://raw.githubusercontent.com/BG-PSC/Files/main/pliki/placeholder.jpg"
@@ -571,6 +694,18 @@ class MapFrame(ft.Container):
         self.zoom_to_all_objects()
         self.page.update()
 
+    def mark_point(self, lat, lon):
+        self.marked_ref.current.circles = []
+        self.marked_ref.current.circles.append(
+            map.CircleMarker(
+                radius=4,
+                coordinates=map.MapLatitudeLongitude(lat, lon),
+                color=ft.Colors.WHITE,
+                border_color=ft.Colors.RED,
+                border_stroke_width=4,
+            )
+        )
+
     def zoom_to_all_objects(self):
         if not self.circle_layer_ref.current.circles:
             return  # Jeśli brak okręgów, nie rób nic
@@ -617,98 +752,6 @@ class MapFrame(ft.Container):
         )
 
         self.page.update()
-
-
-def main(page: ft.Page):
-    debug = False
-
-    file = requests.get(
-        "https://raw.githubusercontent.com/BG-PSC/Files/main/pliki/sztabin/punkty.txt"
-    ).text
-    # file = requests.get("https://bg-psc.github.io/Files/pliki/punkty.txt").text
-    lines = str(file).split("\n")
-    lines = [line.strip() for line in lines if line.strip()]
-    # file = requests.get("https://bg-psc.github.io/Files/pliki/kod-dzialka.txt").text
-    file = requests.get(
-        "https://raw.githubusercontent.com/BG-PSC/Files/main/pliki/sztabin/kod-dzialka.txt"
-    ).text
-    kody = str(file).split("\n")
-    kody = [kod.strip() for kod in kody if kod.strip()]
-
-    if debug:
-        with open(r"D:\Python\kuba\web_map\Files\pliki\punkty.txt", "r") as file:
-            lines = file.read().splitlines()
-
-        with open(r"D:\Python\kuba\web_map\Files\pliki\kod-dzialka.txt", "r") as file:
-            kody = file.read().splitlines()
-
-    # main_row.controls.append(label)
-
-    mf = MapFrame(page, lines, kody)
-
-    def submit_on_clik(e):
-        # mf.visible = not mf.visible
-        mf.clear_layers()
-        page.update()
-        # query.value
-        mf.load_values(query.value)
-
-    query = ft.TextField(
-        label="Wprowadź kod otrzymany w zawiadomieniu",
-        on_submit=lambda e: submit_on_clik(e),
-        height=50,
-        col={"xs": 4, "sm": 4, "md": 3},
-    )
-    submit = ft.ElevatedButton(
-        "Zatwierdź",
-        on_click=lambda e: submit_on_clik(e),
-        height=50,
-        bgcolor=ft.Colors.PRIMARY,
-        color=ft.Colors.ON_PRIMARY,
-        col={"xs": 3, "sm": 3, "md": 1},
-    )
-
-    logo = ft.GestureDetector(
-        content=ft.Image(
-            src="https://raw.githubusercontent.com/BG-PSC/WebMap/main/assets/logo.png",
-            width=50,
-            height=50,
-            fit=ft.ImageFit.CONTAIN,
-        ),
-        on_tap=lambda e: page.launch_url("https://bg-p.pl"),
-        mouse_cursor=ft.MouseCursor.CLICK,
-        col={"xs": 1, "sm": 1, "md": 1},
-    )
-
-    aboutBtn = ft.ElevatedButton(
-        content=ft.Row(
-            controls=[
-                ft.Image(
-                    src="https://raw.githubusercontent.com/BG-PSC/WebMap/refs/heads/main/assets/gddkia.png",
-                    width=40,
-                    height=40,
-                ),
-                ft.Text("O inwestycji", color=ft.Colors.DEEP_ORANGE),
-            ]
-        ),
-        on_click=lambda e: page.launch_url("https://www.dk79-obwodnicalipska.pl/"),
-        col={"xs": 3, "sm": 3, "md": 1.5},
-        height=50,
-    )
-
-    main_row = ft.ResponsiveRow(
-        controls=[logo, query, submit, aboutBtn],
-        alignment=ft.MainAxisAlignment.CENTER,
-        vertical_alignment=ft.CrossAxisAlignment.START,
-    )
-
-    page.add(main_row)
-
-    page.add(mf)
-
-    page.theme_mode = ft.ThemeMode.LIGHT
-
-    page.update()
 
 
 if __name__ == "__main__":
