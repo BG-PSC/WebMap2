@@ -34,6 +34,7 @@ def main(page: ft.Page):
     # main_row.controls.append(label)
 
     mf = MapFrame(page, lines, kody, robota, centrum, zoom)
+    mf.hide_labels()  # wyłącza numery działek przy inicjalizacji
 
     def submit_on_clik(e):
         # mf.visible = not mf.visible
@@ -113,12 +114,9 @@ class MapFrame(ft.Container):
         self.kody = kody
         self.page = page
         print("Reset mapy")
-        self.current_center = map.MapLatitudeLongitude(53.5429174879, 23.1143806578)
-        print(self.current_center)
+
         self.current_center = centrum
-        print(self.current_center)
         self.current_zoom = zoom
-        print(self.current_zoom)
 
         self.expand = 1
         self.border_radius = ft.border_radius.all(10)
@@ -183,7 +181,7 @@ class MapFrame(ft.Container):
         self.main_map = map.Map(
             expand=True,
             initial_center=self.current_center,
-            initial_zoom=self.current_zoom,
+            initial_zoom=zoom,
             min_zoom=10,
             max_zoom=21,
             interaction_configuration=map.MapInteractionConfiguration(
@@ -203,7 +201,7 @@ class MapFrame(ft.Container):
                     # url_template="https://raw.githack.com/Rzezimioszek/WebMapTest/main/{z}/{x}/{y}.png",
                     # url_template="https://raw.githack.com/Rzezimioszek/WebMapTest/main/{z}/{x}/{y}.jpg",
                     # url_template="https://raw.githack.com/Rzezimioszek/Files/main/ortofotomapa/S17K/{z}/{x}/{y}.jpg",
-                    url_template="https://raw.githubusercontent.com/BG-PSC/Files/refs/heads/main/ortofotomapa/lipsko/{z}/{x}/{y}.png",
+                    url_template="https://raw.githubusercontent.com/BG-PSC/Files/refs/heads/main/ortofotomapa/sztabin/{z}/{x}/{y}.png",
                     # url_template="http://mapy.geoportal.gov.pl/wss/service/PZGIK/ORTO/WMTS/HighResolution?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTOFOTOMAPA&STYLE=default&FORMAT=image%2Fjpeg&TILEMATRIXSET=EPSG%3A4326&TILEMATRIX=EPSG%3A4326%3A{z}&TILEROW={x}&TILECOL={y}"
                     # url_template="https://mapy.geoportal.gov.pl/wss/ext/OSM/BaseMap/tms/1.0.0/osm_3857/GLOBAL_WEBMERCATOR/{z}/{x}/{y}.png",
                     # url_template="https://raw.githack.com/Rzezimioszek/Files/main/ortofotomapa/S17K2/{z}/{x}/{y}.jpg",
@@ -272,7 +270,7 @@ class MapFrame(ft.Container):
         zoom_to_allBtn = ft.ElevatedButton(
             "Pokaż całą mapę",
             on_click=lambda e: self.main_map.move_to(
-                self.current_center, self.current_zoom
+                map.MapLatitudeLongitude(53.5429174879, 23.1143806578), 12
             ),
         )
 
@@ -358,9 +356,9 @@ class MapFrame(ft.Container):
                 ft.Column(
                     [
                         zoom_to_allBtn,
+                        self.hide_labelsBtn,
                         self.switch_bcgBtn,
                         listBtn,
-                        self.hide_labelsBtn,
                         # elBtn
                     ],
                     alignment=ft.MainAxisAlignment.CENTER,
@@ -374,7 +372,14 @@ class MapFrame(ft.Container):
         )
 
     def on_map_event(self, e: map.MapEvent):
-        pass
+        try:
+            if hasattr(e, "coordinates") and e.coordinates:
+
+                self.current_center = e.coordinates
+            if hasattr(e, "zoom") and e.zoom:
+                self.current_zoom = e.zoom
+        except Exception as err:
+            print("Błąd przt aktualizacji centrum: {err}")
 
     def switch_bcg(self, e=None):
         # Check the current map layer and toggle
