@@ -607,7 +607,7 @@ class MapFrame(ft.Container):
 
         spl = str(e.control.text).split()
         try:
-            image_url = f"https://raw.githubusercontent.com/BG-PSC/Files/main/pliki/graniczniki_lipsko/{spl[2]}.jpg"
+            image_url = f"https://raw.githubusercontent.com/BG-PSC/Files/main/pliki/graniczniki/suchowola/{spl[2]}.jpg"
             response = requests.head(image_url)
             if response.status_code == 200:
                 self.image_file.src = image_url
