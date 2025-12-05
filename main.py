@@ -81,7 +81,7 @@ def main(page: ft.Page):
                 ft.Text("O inwestycji", color=ft.Colors.DEEP_ORANGE),
             ]
         ),
-        on_click=lambda e: page.launch_url("https://www.dk79-obwodnicalipska.pl/"),
+        on_click=lambda e: page.launch_url("https://www.obwodnica-sztabina.pl/"),
         col={"xs": 3, "sm": 3, "md": 1.5},
         height=50,
     )
